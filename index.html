@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>CSS Transforms</title>
+  <meta charset="UTF-8">
+  <style>
+    html, body {
+      padding: 0;
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+    body {
+      font: normal 2em arial;
+      text-align: center;
+    }
+    #controls {
+      position: absolute;
+      top: 2em;
+      width: 100%;
+      z-index: 2;
+    }
+    #transform-expression {
+      padding: .5em;
+      font-size: .9em;
+      border: none;
+      border-bottom: 2px dotted transparent;
+      color: #666;
+      width: 60%;
+      text-align: center;
+      opacity: .5;
+      background: transparent;
+      transition: opacity .3s, border .3s;
+    }
+    #transform-expression:hover, #transform-expression:focus {
+      opacity: 1;
+      border-bottom: 2px dotted #ccc;
+    }
+    #sandbox {
+      display: block;
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 1;
+    }
+
+    .movable {
+      cursor: move;
+    }
+    .movable-x {
+      cursor: ew-resize;
+    }
+    .movable-y {
+      cursor: ns-resize;
+    }
+    .original {
+      fill: rgba(210, 242, 254, .6);
+    }
+    .border {
+      fill: transparent;
+    }
+    .border:hover {
+      fill: rgba(210, 242, 254, 1);
+    }
+    .transformed {
+      fill: #FACADE;
+    }
+    .origin {
+      fill: #f971df;
+    }
+    .origin:hover {
+      fill: #BF67AE;
+    }
+
+    #transform-parser {
+      position: absolute;
+      visibility: hidden;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="controls">
+    <input id="transform-expression" value="" placeholder="Enter a CSS transform expression here" />
+  </div>
+  <svg id="sandbox" xmlns="http://www.w3.org/2000/svg" version="1.1"></svg>
+  <div id="transform-parser"></div>
+
+  <script>
+    /*
+    TODO
+    missing arrows
+    show dimensions and positions labels while moving/dragging
+    (for center, show center/top/bottom/... labels when at 0/100%)
+    style center to be nicer
+    need sliders for all numerical values in transform input
+    */
+
+    var sandbox, original, transformed, expression, transformParser, origin;
+
+    window.onload = function () {
+
+      var SVG_NS = "http://www.w3.org/2000/svg";
+
+      var WIDTH = 500;
+      var HEIGHT = 350;
+      var X = document.documentElement.clientWidth/2 - WIDTH/2;
+      var Y = document.documentElement.clientHeight/2 - HEIGHT/2;
+      var TRANSFORM = decodeURI(document.location.hash.substring(1)) || "skew(15deg) scaleY(1.2)";
+      var ORIGIN_X = Math.round(WIDTH / 2);
+      var ORIGIN_Y = HEIGHT;
+
+      var hash = decodeURI(document.location.hash.substring(1));
+      if (hash) {
+        var values = hash.split("|");
+        if (values.length === 4) {
+          var dims = values[0].split("x");
+          WIDTH = parseInt(dims[0], 10);
+          HEIGHT = parseInt(dims[1], 10);
+
+          var pos = values[1].split("x");
+          X = parseInt(pos[0], 10);
+          Y = parseInt(pos[1], 10);
+
+          TRANSFORM = values[2];
+
+          var orig = values[3].split("x");
+          ORIGIN_X = parseInt(orig[0], 10);
+          ORIGIN_Y = parseInt(orig[1], 10);
+        }
+      }
+
+      sandbox = document.getElementById("sandbox");
+      expression = document.getElementById("transform-expression");
+      transformParser = document.getElementById("transform-parser");
+
+      // The core of this demo is this : the transform coordinates calculator
+
+      function getComputedMatrix() {
+        transformParser.style.transform = expression.value;
+        transformParser.style.webkitTransform = expression.value;
+        return getComputedStyle(transformParser).transform || getComputedStyle(transformParser).webkitTransform;
+      }
+
+      function getTransformedRect(originalPoints, originX, originY) {
+        // Get the transformation matrix from the computed style
+        var tr = getComputedMatrix(), transformMatrix = [];
+        tr = tr.substring(0, tr.length - 1).substring(tr.indexOf("(") + 1).split(",");
+
+        tr.forEach(function(value, index) {
+          tr[index] = parseFloat(value, 10);
+        });
+
+        if (tr.length === 6) {
+          // 2d transform
+          transformMatrix = [
+            [tr[0], tr[2], tr[4], 0],
+            [tr[1], tr[3], tr[5], 0],
+            [0,     0,     1,     0],
+            [0,     0,     0,     1]
+          ];
+        } else {
+          // 3d transform
+          transformMatrix = [
+            [tr[0], tr[4], tr[8],  tr[12]],
+            [tr[1], tr[5], tr[9],  tr[13]],
+            [tr[2], tr[6], tr[10], tr[14]],
+            [tr[3], tr[7], tr[11], tr[15]]
+          ];
+        }
+
+        function multiplyMatricesAndGetXY(m1, m2) {
+          var m = [];
+          for (var m1Line = 0; m1Line < m1.length; m1Line ++) {
+            m[m1Line] = 0;
+            for (var m2Col = 0; m2Col < m2.length; m2Col ++) {
+              m[m1Line] += m1[m1Line][m2Col] * m2[m2Col];
+            }
+          }
+          return {x: m[0], y: m[1]};
+        }
+
+        // Each of the shape's corners in a matrix
+        var topLeftMatrix = [originalPoints[0].x - originX, originalPoints[0].y - originY, 1, 1];
+        var topRightMatrix = [originalPoints[1].x - originX, originalPoints[1].y - originY, 1, 1];
+        var bottomRightMatrix = [originalPoints[2].x - originX, originalPoints[2].y - originY, 1, 1];
+        var bottomLeftMatrix = [originalPoints[3].x - originX, originalPoints[3].y - originY, 1, 1];
+
+        var topLeft = multiplyMatricesAndGetXY(transformMatrix, topLeftMatrix);
+        var topRight = multiplyMatricesAndGetXY(transformMatrix, topRightMatrix);
+        var bottomRight = multiplyMatricesAndGetXY(transformMatrix, bottomRightMatrix);
+        var bottomLeft = multiplyMatricesAndGetXY(transformMatrix, bottomLeftMatrix);
+
+        return [
+          {x: topLeft.x + originX, y: topLeft.y + originY},
+          {x: topRight.x + originX, y: topRight.y + originY},
+          {x: bottomRight.x + originX, y: bottomRight.y + originY},
+          {x: bottomLeft.x + originX, y: bottomLeft.y + originY}
+        ];
+      }
+
+      // Simple mix-ins
+
+      function observable(object) {
+        object.listeners = {};
+        object.emit = function(name) {
+          var args = [].slice.call(arguments, 1);
+          if (object.listeners[name]) {
+            object.listeners[name].forEach(function (cb) {
+              cb.apply(null, args);
+            })
+          }
+        }
+        object.on = function(name, cb) {
+          if (!object.listeners[name]) {
+            object.listeners[name] = [];
+          }
+          object.listeners[name].push(cb);
+        }
+      }
+
+      function movable(element, moveByCb, axis) {
+        element.classList.add("movable");
+        if (axis) {
+          element.classList.add("movable-" + axis);
+        }
+
+        var isMoving = false;
+        var position = {x: 0, y: 0};
+        var xConstrained = !axis || axis === "x";
+        var yConstrained = !axis || axis === "y";
+
+        element.addEventListener("mousedown", function(event) {
+          isMoving = true;
+          position = {x: event.clientX, y: event.clientY};
+        }, false);
+
+        document.addEventListener("mouseup", function(event) {
+          isMoving = false;
+          position = {x: 0, y: 0};
+        }, false);
+
+        document.addEventListener("mousemove", function(event) {
+          if (isMoving) {
+            var delta = {
+              x: xConstrained ? event.clientX - position.x : 0,
+              y: yConstrained ? event.clientY - position.y : 0
+            };
+            moveByCb(delta.x, delta.y);
+            position = {x: event.clientX, y: event.clientY};
+          }
+        }, false);
+      }
+
+      // Abstract shape class
+
+      function Shape(points, className, insertBefore) {
+        this.element = document.createElementNS(SVG_NS, "polygon");
+        this.element.setAttribute("class", className);
+        if (insertBefore) {
+          sandbox.insertBefore(this.element, insertBefore);
+        } else {
+          sandbox.appendChild(this.element);
+        }
+
+        this.points = points || [
+          {x: 0, y: 0},
+          {x: 200, y: 0},
+          {x: 200, y: 200},
+          {x: 0, y: 200}
+        ];
+
+        this.setPoints(this.points);
+      }
+      Shape.prototype.setPoints = function(points) {
+        this.points = points;
+        var str = [];
+        points.forEach(function (point, index) {
+          str.push(point.x + "," + point.y);
+        });
+        this.element.setAttribute("points", str.join(" "));
+      };
+      Shape.prototype.moveBy = function(x, y) {
+        this.points.forEach(function (point, index) {
+          point.x += x;
+          point.y += y;
+        });
+        this.setPoints(this.points);
+      };
+      Shape.prototype.movePointBy = function(index, x, y) {
+        this.points[index].x += x;
+        this.points[index].y += y;
+        this.setPoints(this.points);
+      };
+
+      // Our transformee
+
+      function Original(points) {
+        // Draw a rectangle shape
+        this.shape = new Shape(points, "original");
+        // Make it movable
+        movable(this.shape.element, this.moveBy.bind(this));
+
+        observable(this);
+
+        // Draw borders and make them movable to resize the shape
+        this.top = new Shape([], "border");
+        movable(this.top.element, this.moveTopBy.bind(this), "y");
+        this.bottom = new Shape([], "border");
+        movable(this.bottom.element, this.moveBottomBy.bind(this), "y");
+        this.left = new Shape([], "border");
+        movable(this.left.element, this.moveLeftBy.bind(this), "x");
+        this.right = new Shape([], "border");
+        movable(this.right.element, this.moveRightBy.bind(this), "x");
+
+        this.redrawBorders();
+      }
+      Original.prototype.moveBy = function(x, y) {
+        this.shape.moveBy(x, y);
+        this.emit("moved-by", x, y);
+        this.redrawBorders();
+      }
+      Original.prototype.redrawBorders = function() {
+        var size = 5;
+
+        this.top.setPoints([
+          {x: this.shape.points[0].x, y: this.shape.points[0].y},
+          {x: this.shape.points[1].x, y: this.shape.points[1].y},
+          {x: this.shape.points[1].x, y: this.shape.points[1].y + size},
+          {x: this.shape.points[0].x, y: this.shape.points[0].y + size}
+        ]);
+
+        this.bottom.setPoints([
+          {x: this.shape.points[3].x, y: this.shape.points[3].y - size},
+          {x: this.shape.points[2].x, y: this.shape.points[2].y - size},
+          {x: this.shape.points[2].x, y: this.shape.points[2].y},
+          {x: this.shape.points[3].x, y: this.shape.points[3].y}
+        ]);
+
+        this.left.setPoints([
+          {x: this.shape.points[0].x, y: this.shape.points[0].y},
+          {x: this.shape.points[0].x + size, y: this.shape.points[0].y},
+          {x: this.shape.points[3].x + size, y: this.shape.points[3].y},
+          {x: this.shape.points[3].x, y: this.shape.points[3].y}
+        ]);
+
+        this.right.setPoints([
+          {x: this.shape.points[1].x - size, y: this.shape.points[1].y},
+          {x: this.shape.points[1].x, y: this.shape.points[1].y},
+          {x: this.shape.points[2].x, y: this.shape.points[2].y},
+          {x: this.shape.points[2].x- size, y: this.shape.points[2].y}
+        ]);
+
+        this.emit("updated");
+      }
+      Original.prototype.moveTopBy = function(x, y) {
+        this.shape.movePointBy(0, 0, y);
+        this.shape.movePointBy(1, 0, y);
+        this.redrawBorders();
+      }
+      Original.prototype.moveBottomBy = function(x, y) {
+        this.shape.movePointBy(2, 0, y);
+        this.shape.movePointBy(3, 0, y);
+        this.redrawBorders();
+      }
+      Original.prototype.moveLeftBy = function(x, y) {
+        this.shape.movePointBy(0, x, 0);
+        this.shape.movePointBy(3, x, 0);
+        this.redrawBorders();
+      }
+      Original.prototype.moveRightBy = function(x, y) {
+        this.shape.movePointBy(1, x, 0);
+        this.shape.movePointBy(2, x, 0);
+        this.redrawBorders();
+      }
+
+      // Transformed shape
+      function Transformed(original, origin) {
+        this.original = original;
+        this.origin = origin;
+        this.shape = new Shape([], "transformed", original.shape.element);
+
+        this.original.on("updated", this.draw.bind(this));
+        this.origin.on("updated", this.draw.bind(this));
+
+        this.draw();
+      }
+      Transformed.prototype.draw = function() {
+        this.shape.setPoints(getTransformedRect(this.original.shape.points, this.origin.x, this.origin.y));
+      }
+
+      // Origin circle
+      function Origin(i, offsetX, offsetY) {
+        observable(this);
+
+        this.inside = i;
+
+        this.element = document.createElementNS(SVG_NS, "circle");
+        this.element.setAttribute("r", 10);
+        this.element.setAttribute("class", "origin");
+        sandbox.appendChild(this.element);
+
+        this.drawAtParentOffset(offsetX, offsetY);
+
+        this.inside.on("moved-by", function(x, y) {
+          this.x += x;
+          this.y += y;
+          this.drawAt(this.x, this.y);
+        }.bind(this));
+
+        movable(this.element, function(x, y) {
+          this.x += x;
+          this.y += y;
+          this.drawAt(this.x, this.y);
+        }.bind(this));
+      }
+      Origin.prototype.drawAt = function(x, y) {
+        this.element.setAttribute("cx", x);
+        this.element.setAttribute("cy", y);
+
+        this.emit("updated");
+      }
+      Origin.prototype.drawAtParentOffset = function(x, y) {
+        this.x = this.inside.shape.points[0].x + x;
+        this.y = this.inside.shape.points[0].y + y;
+        this.drawAt(this.x, this.y);
+      }
+
+      expression.value = TRANSFORM;
+
+      original = new Original([
+        {x: X, y: Y},
+        {x: X + WIDTH, y: Y},
+        {x: X + WIDTH, y: Y + HEIGHT},
+        {x: X, y: Y + HEIGHT}
+      ]);
+      origin = new Origin(original, ORIGIN_X, ORIGIN_Y);
+      transformed = new Transformed(original, origin);
+
+      function saveToHash() {
+        var hash = [
+          (original.shape.points[1].x - original.shape.points[0].x) + "x" + (original.shape.points[3].y - original.shape.points[0].y),
+          original.shape.points[0].x + "x" + original.shape.points[0].y,
+          expression.value,
+          (origin.x - original.shape.points[0].x) + "x" + (origin.y - original.shape.points[0].y)
+        ];
+        document.location.hash = encodeURI(hash.join("|"));
+      }
+
+      expression.addEventListener("keyup", function() {
+        transformed.draw();
+        saveToHash();
+      }, false);
+      origin.on("updated", saveToHash);
+      original.on("updated", saveToHash);
+    }
+  </script>
+
+</body>
+</html>
