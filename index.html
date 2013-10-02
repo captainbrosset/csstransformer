@@ -31,7 +31,7 @@
       text-align: center;
       opacity: .5;
       background: transparent;
-      transition: opacity .3s, border .3s;
+      transition: opacity .5s, border .5s;
     }
     #transform-expression:hover, #transform-expression:focus {
       opacity: 1;
@@ -59,6 +59,7 @@
     }
     .border {
       fill: transparent;
+      transition: fill .5s;
     }
     .border:hover {
       fill: rgba(210, 242, 254, 1);
@@ -68,9 +69,15 @@
     }
     .origin {
       fill: #f971df;
+      transition: fill .5s;
     }
     .origin:hover {
       fill: #BF67AE;
+    }
+    .arrow-line {
+      stroke-width: 3;
+      stroke: #f971df;
+      stroke-linecap: round;
     }
 
     #transform-parser {
@@ -322,7 +329,7 @@
         this.redrawBorders();
       }
       Original.prototype.redrawBorders = function() {
-        var size = 5;
+        var size = 10;
 
         this.top.setPoints([
           {x: this.shape.points[0].x, y: this.shape.points[0].y},
@@ -375,6 +382,20 @@
         this.redrawBorders();
       }
 
+      // Arrows
+      function Arrow() {
+        this.element = document.createElementNS(SVG_NS, "line");
+        this.element.setAttribute("class", "arrow-line");
+
+        sandbox.appendChild(this.element);
+      }
+      Arrow.prototype.drawAt = function(x1, y1, x2, y2) {
+        this.element.setAttribute("x1", x1);
+        this.element.setAttribute("y1", y1);
+        this.element.setAttribute("x2", x2);
+        this.element.setAttribute("y2", y2);
+      }
+
       // Transformed shape
       function Transformed(original, origin) {
         this.original = original;
@@ -384,10 +405,22 @@
         this.original.on("updated", this.draw.bind(this));
         this.origin.on("updated", this.draw.bind(this));
 
+        this.arrows = [
+          new Arrow(),
+          new Arrow(),
+          new Arrow(),
+          new Arrow()
+        ];
+
         this.draw();
       }
       Transformed.prototype.draw = function() {
-        this.shape.setPoints(getTransformedRect(this.original.shape.points, this.origin.x, this.origin.y));
+        var transformedPoints = getTransformedRect(this.original.shape.points, this.origin.x, this.origin.y);
+        this.shape.setPoints(transformedPoints);
+
+        for (var i = 0; i < 4; i ++) {
+          this.arrows[i].drawAt(this.original.shape.points[i].x, this.original.shape.points[i].y, transformedPoints[i].x, transformedPoints[i].y);
+        }
       }
 
       // Origin circle
