@@ -3,6 +3,7 @@
 <head>
   <title>CSS Transforms</title>
   <meta charset="UTF-8">
+  <link rel="icon" href="favicon.ico" />
   <style>
     html, body {
       padding: 0;
@@ -76,13 +77,29 @@
     }
     .arrow-line {
       stroke-width: 3;
-      stroke: #f971df;
+      stroke: rgba(210, 242, 254, .6);
       stroke-linecap: round;
+    }
+    .arrow-head {
+      fill: rgba(210, 242, 254, .6);
     }
 
     #transform-parser {
       position: absolute;
       visibility: hidden;
+    }
+
+    #selector {
+      position: absolute;
+      bottom: 2em;
+      width: 100%;
+      z-index: 3;
+
+      padding: .5em;
+    }
+    #selector pre {
+      color: #bbb;
+      font: normal .7em arial;
     }
   </style>
 </head>
@@ -91,7 +108,14 @@
   <div id="controls">
     <input id="transform-expression" value="" placeholder="Enter a CSS transform expression here" />
   </div>
-  <svg id="sandbox" xmlns="http://www.w3.org/2000/svg" version="1.1"></svg>
+  <svg id="sandbox" xmlns="http://www.w3.org/2000/svg" version="1.1">
+    <defs>
+      <marker id='arrow-head' orient='auto' markerWidth='2' markerHeight='4' refX='0.1' refY='2'>
+        <path class="arrow-head" d='M0,0 V4 L2,2 Z' />
+      </marker>
+    </defs>
+  </svg>
+  <div id="selector"></div>
   <div id="transform-parser"></div>
 
   <script>
@@ -104,19 +128,19 @@
     need sliders for all numerical values in transform input
     */
 
-    var sandbox, original, transformed, expression, transformParser, origin;
+    var sandbox, original, transformed, expression, transformParser, origin, selector;
 
     window.onload = function () {
 
       var SVG_NS = "http://www.w3.org/2000/svg";
 
-      var WIDTH = 500;
+      var WIDTH = 350;
       var HEIGHT = 350;
       var X = document.documentElement.clientWidth/2 - WIDTH/2;
       var Y = document.documentElement.clientHeight/2 - HEIGHT/2;
-      var TRANSFORM = decodeURI(document.location.hash.substring(1)) || "skew(15deg) scaleY(1.2)";
+      var TRANSFORM = decodeURI(document.location.hash.substring(1)) || "rotate(45deg)";
       var ORIGIN_X = Math.round(WIDTH / 2);
-      var ORIGIN_Y = HEIGHT;
+      var ORIGIN_Y = Math.round(HEIGHT / 2);
 
       var hash = decodeURI(document.location.hash.substring(1));
       if (hash) {
@@ -141,6 +165,7 @@
       sandbox = document.getElementById("sandbox");
       expression = document.getElementById("transform-expression");
       transformParser = document.getElementById("transform-parser");
+      selector = document.getElementById("selector");
 
       // The core of this demo is this : the transform coordinates calculator
 
@@ -386,6 +411,7 @@
       function Arrow() {
         this.element = document.createElementNS(SVG_NS, "line");
         this.element.setAttribute("class", "arrow-line");
+        this.element.setAttribute("marker-end", "url(#arrow-head)");
 
         sandbox.appendChild(this.element);
       }
@@ -481,12 +507,60 @@
         document.location.hash = encodeURI(hash.join("|"));
       }
 
+      function generateCssSelector() {
+        var selector = ["div {"];
+
+        var width = Math.round(original.shape.points[1].x - original.shape.points[0].x);
+        var height = Math.round(original.shape.points[3].y - original.shape.points[0].y);
+
+        selector.push("width : " + width + "px;");
+        selector.push("height : " + height + "px;");
+        selector.push("transform : " + expression.value + ";");
+
+        // Approximating origin position
+        var threshold = 2;
+
+        var originX = Math.round((origin.x - original.shape.points[0].x) * 100 / width);
+        if (originX >= 0 && originX <= threshold) {
+          originX = "left";
+        } else if (originX >= 50 - threshold/2 && originX <= 50 + threshold/2) {
+          originX = "center";
+        } else if (originX >= 100 - threshold && originX <= 100) {
+          originX = "right";
+        } else {
+          originX += "%";
+        }
+
+        var originY = Math.round((origin.y - original.shape.points[0].y) * 100 / height);
+        if (originY >= 0 && originY <= threshold) {
+          originY = "top";
+        } else if (originY >= 50 - threshold/2 && originY <= 50 + threshold/2) {
+          originY = "center";
+        } else if (originY >= 100 - threshold && originY <= 100) {
+          originY = "bottom";
+        } else {
+          originY += "%";
+        }
+
+        selector.push("transform-origin : " + originX + " " + originY + ";");
+
+        selector.push("}");
+        return selector.join(" ");
+      }
+
+      function onChange() {
+        saveToHash();
+        selector.innerHTML = "<pre>" + generateCssSelector() + "</pre>";
+      }
+
       expression.addEventListener("keyup", function() {
         transformed.draw();
-        saveToHash();
+        onChange();
       }, false);
-      origin.on("updated", saveToHash);
-      original.on("updated", saveToHash);
+      origin.on("updated", onChange);
+      original.on("updated", onChange);
+
+      onChange();
     }
   </script>
 
