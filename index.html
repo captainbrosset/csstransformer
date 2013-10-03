@@ -553,10 +553,73 @@
         selector.innerHTML = "<pre>" + generateCssSelector() + "</pre>";
       }
 
+      function increaseValue(inputElement, bIncrease, bWithShift, bWithCtrl) {
+        // increase/decrease by 1 or 0.1 a part of the inputElement's value in the parentheses having the caret
+        var el = inputElement;
+        var selectionStartBefore = el.selectionStart;
+
+        var iLeftParen = el.value.lastIndexOf('(', el.selectionStart);
+        var iRightParen = el.value.indexOf(')', el.selectionStart);
+        var iPreviousRightParen = el.value.lastIndexOf(')', el.selectionStart);
+        var bNotInParentheses = ((iRightParen != iPreviousRightParen) && (iPreviousRightParen > iLeftParen)) ||
+             (iLeftParen == el.selectionStart);
+        // debugger;
+        if(iLeftParen < 0 || iRightParen < 0 || bNotInParentheses) {
+          return;
+        }
+
+        var delta = bIncrease === false ? -1 : 1;
+        if (bWithShift) {
+            delta *= 10;
+        } else if (bWithCtrl) {
+            delta /= 10;
+        }
+
+        var floatDigits = 0;
+        var sOldValWithParens = el.value.slice(iLeftParen, iRightParen + 1); // e.g. (20deg)
+        var sOldValWithUnit = sOldValWithParens.replace(/\(|\)/g, "");       // e.g.  20deg
+        var mOldValHasUnits = sOldValWithUnit.match(/[a-zA-Z]/);
+        var sOldVal = mOldValHasUnits ? sOldValWithUnit.slice(0, mOldValHasUnits.index) : sOldValWithUnit;
+        var nOldVal = parseFloat(sOldValWithUnit);
+
+        var floatPos = sOldVal.indexOf('.');
+        if(floatPos != -1) {
+          delta /= 10;
+          floatDigits = sOldVal.length - floatPos - 1;
+        }
+        if(floatDigits <= 1 && bWithCtrl) {
+          floatDigits += 1; // make possible to have bigger resolution
+        }
+        var nNewVal = nOldVal + delta;
+        var sNewVal = nNewVal.toFixed(floatDigits);
+        var sNewValWithParens = sOldValWithParens.replace(sOldVal, sNewVal);
+
+        var oldExpr = el.value;
+        var newExpr = oldExpr.slice(0, iLeftParen) + sNewValWithParens + oldExpr.slice(iRightParen + 1);
+        el.value = newExpr;
+        transformed.draw();
+        onChange();
+
+        // restore caret to the proper place so wen can press keyboard once again
+        // using setTimeout is a hack for Chrome, somehow the selection gets zeroed later on
+        setTimeout(function () {
+          el.setSelectionRange(selectionStartBefore, selectionStartBefore);
+        }, 0);
+      }
+
       expression.addEventListener("keyup", function() {
         transformed.draw();
         onChange();
       }, false);
+
+      expression.addEventListener('keydown', function (evt) {
+        if (evt.keyCode == '38') { // arrow up
+          increaseValue(expression, true, evt.shiftKey, evt.ctrlKey);
+        } else if (evt.keyCode == '40') { // arrow down
+          increaseValue(expression, false, evt.shiftKey, evt.ctrlKey);
+        }
+      }, false);
+
       origin.on("updated", onChange);
       original.on("updated", onChange);
 
