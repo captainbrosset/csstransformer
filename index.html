@@ -444,10 +444,15 @@
         sandbox.appendChild(this.element);
       }
       Arrow.prototype.drawAt = function(x1, y1, x2, y2) {
-        this.element.setAttribute("x1", x1);
-        this.element.setAttribute("y1", y1);
-        this.element.setAttribute("x2", x2);
-        this.element.setAttribute("y2", y2);
+        if (Math.abs(x2 - x1) < 10 && Math.abs(y2 - y1) < 10) {
+          this.element.style.display = "none";
+        } else {
+          this.element.setAttribute("x1", x1);
+          this.element.setAttribute("y1", y1);
+          this.element.setAttribute("x2", x2);
+          this.element.setAttribute("y2", y2);
+          this.element.style.display = "block";
+        }
       }
 
       // Transformed shape
