@@ -18,7 +18,7 @@
     }
     #controls {
       position: absolute;
-      top: 2em;
+      top: 1em;
       width: 100%;
       z-index: 2;
     }
@@ -91,7 +91,7 @@
 
     #selector {
       position: absolute;
-      bottom: 2em;
+      bottom: 1em;
       width: 100%;
       z-index: 3;
 
@@ -132,8 +132,8 @@
 
       var SVG_NS = "http://www.w3.org/2000/svg";
 
-      var WIDTH = 350;
-      var HEIGHT = 350;
+      var WIDTH = 300;
+      var HEIGHT = 300;
       var X = document.documentElement.clientWidth/2 - WIDTH/2;
       var Y = document.documentElement.clientHeight/2 - HEIGHT/2;
       var TRANSFORM = decodeURI(document.location.hash.substring(1)) || "rotate(45deg)";
@@ -552,7 +552,7 @@
       }
 
       function isNumber(string) {
-        return parseInt(string) + "" === string || string === "-";
+        return parseInt(string) + "" === string || string === "-" || string === ".";
       }
 
       function isCloseToNumber(string, index) {
@@ -604,8 +604,9 @@
               delta /= 10;
           }
 
-          var value = parseInt(input.value.substring(nbRange.start, nbRange.end));
+          var value = parseFloat(input.value.substring(nbRange.start, nbRange.end));
           value += delta;
+          value = Math.round(value * 10) / 10;
 
           input.value = input.value.slice(0, nbRange.start) + value + input.value.slice(nbRange.end);
 
@@ -613,7 +614,7 @@
           onChange();
 
           setTimeout(function () {
-            input.setSelectionRange(selectionStartBefore, selectionStartBefore);
+            input.setSelectionRange(nbRange.start, nbRange.start);
           }, 0);
         }
       }
