@@ -101,12 +101,41 @@
       color: #bbb;
       font: normal .7em arial;
     }
+
+    #reset {
+      position: absolute;
+      top: .5em;
+      left: 80%;
+      display: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 20px;
+      background: #ccc;
+      cursor: pointer;
+    }
+    #reset:after {
+      content: "x";
+      color: white;
+      font-size: 18px;
+      line-height: 16px;
+      position: absolute;
+      text-align: center;
+      width: 20px;
+      height: 20px;
+      top: 0;
+      left: 0;
+      font-family: verdana;
+    }
+    #controls:hover #reset {
+      display: block;
+    }
   </style>
 </head>
 <body>
 
   <div id="controls">
     <input id="transform-expression" value="" placeholder="Enter a CSS transform expression here" />
+    <span id="reset" title="reset all" onclick="document.location.hash='';document.location.reload();"></span>
   </div>
   <svg id="sandbox" xmlns="http://www.w3.org/2000/svg" version="1.1">
     <defs>
