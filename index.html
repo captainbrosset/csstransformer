@@ -132,7 +132,6 @@
   </style>
 </head>
 <body>
-
   <div id="controls">
     <input id="transform-expression" value="" placeholder="Enter a CSS transform expression here" />
     <span id="reset" title="reset all" onclick="document.location.hash='';document.location.reload();"></span>
@@ -161,6 +160,8 @@
       var TRANSFORM = decodeURI(document.location.hash.substring(1)) || "rotate(45deg)";
       var ORIGIN_X = Math.round(WIDTH / 2);
       var ORIGIN_Y = Math.round(HEIGHT / 2);
+      var ORIGIN_SNAP_THRESHOLD = 10;
+      var BORDER_SIZE = 10;
 
       var hash = decodeURI(document.location.hash.substring(1));
       if (hash) {
@@ -299,8 +300,8 @@
               x: xConstrained ? event.clientX - position.x : 0,
               y: yConstrained ? event.clientY - position.y : 0
             };
-            moveByCb(delta.x, delta.y);
             position = {x: event.clientX, y: event.clientY};
+            moveByCb(delta.x, delta.y);
           }
         }, false);
       }
@@ -374,34 +375,32 @@
         this.redrawBorders();
       }
       Original.prototype.redrawBorders = function() {
-        var size = 10;
-
         this.top.setPoints([
           {x: this.shape.points[0].x, y: this.shape.points[0].y},
           {x: this.shape.points[1].x, y: this.shape.points[1].y},
-          {x: this.shape.points[1].x, y: this.shape.points[1].y + size},
-          {x: this.shape.points[0].x, y: this.shape.points[0].y + size}
+          {x: this.shape.points[1].x, y: this.shape.points[1].y + BORDER_SIZE},
+          {x: this.shape.points[0].x, y: this.shape.points[0].y + BORDER_SIZE}
         ]);
 
         this.bottom.setPoints([
-          {x: this.shape.points[3].x, y: this.shape.points[3].y - size},
-          {x: this.shape.points[2].x, y: this.shape.points[2].y - size},
+          {x: this.shape.points[3].x, y: this.shape.points[3].y - BORDER_SIZE},
+          {x: this.shape.points[2].x, y: this.shape.points[2].y - BORDER_SIZE},
           {x: this.shape.points[2].x, y: this.shape.points[2].y},
           {x: this.shape.points[3].x, y: this.shape.points[3].y}
         ]);
 
         this.left.setPoints([
           {x: this.shape.points[0].x, y: this.shape.points[0].y},
-          {x: this.shape.points[0].x + size, y: this.shape.points[0].y},
-          {x: this.shape.points[3].x + size, y: this.shape.points[3].y},
+          {x: this.shape.points[0].x + BORDER_SIZE, y: this.shape.points[0].y},
+          {x: this.shape.points[3].x + BORDER_SIZE, y: this.shape.points[3].y},
           {x: this.shape.points[3].x, y: this.shape.points[3].y}
         ]);
 
         this.right.setPoints([
-          {x: this.shape.points[1].x - size, y: this.shape.points[1].y},
+          {x: this.shape.points[1].x - BORDER_SIZE, y: this.shape.points[1].y},
           {x: this.shape.points[1].x, y: this.shape.points[1].y},
           {x: this.shape.points[2].x, y: this.shape.points[2].y},
-          {x: this.shape.points[2].x- size, y: this.shape.points[2].y}
+          {x: this.shape.points[2].x- BORDER_SIZE, y: this.shape.points[2].y}
         ]);
 
         this.emit("updated");
@@ -520,6 +519,28 @@
         }.bind(this));
       }
       Origin.prototype.drawAt = function(x, y) {
+        var xSnapPoints = [
+          this.inside.shape.points[0].x,
+          this.inside.shape.points[1].x,
+          this.inside.shape.points[0].x + (this.inside.shape.points[1].x - this.inside.shape.points[0].x)/2
+        ];
+        var ySnapPoints = [
+          this.inside.shape.points[0].y,
+          this.inside.shape.points[3].y,
+          this.inside.shape.points[0].y + (this.inside.shape.points[3].y - this.inside.shape.points[0].y)/2
+        ];
+
+        for (var i = 0; i < 3; i ++) {
+          if (x >= xSnapPoints[i] - (ORIGIN_SNAP_THRESHOLD / 2) &&
+            x <= xSnapPoints[i] + (ORIGIN_SNAP_THRESHOLD / 2)) {
+            x = xSnapPoints[i];
+          }
+          if (y >= ySnapPoints[i] - (ORIGIN_SNAP_THRESHOLD / 2) &&
+            y <= ySnapPoints[i] + (ORIGIN_SNAP_THRESHOLD / 2)) {
+            y = ySnapPoints[i];
+          }
+        }
+
         this.element.setAttribute("cx", x);
         this.element.setAttribute("cy", y);
 
@@ -569,25 +590,23 @@
         selector.push("transform : " + expression.value + ";");
 
         // Approximating origin position
-        var threshold = 2;
-
         var originX = Math.round((origin.x - original.shape.points[0].x) * 100 / width);
-        if (originX >= 0 && originX <= threshold) {
+        if (originX >= 0 && originX <= ORIGIN_SNAP_THRESHOLD) {
           originX = "left";
-        } else if (originX >= 50 - threshold/2 && originX <= 50 + threshold/2) {
+        } else if (originX >= 50 - ORIGIN_SNAP_THRESHOLD/2 && originX <= 50 + ORIGIN_SNAP_THRESHOLD/2) {
           originX = "center";
-        } else if (originX >= 100 - threshold && originX <= 100) {
+        } else if (originX >= 100 - ORIGIN_SNAP_THRESHOLD && originX <= 100) {
           originX = "right";
         } else {
           originX += "%";
         }
 
         var originY = Math.round((origin.y - original.shape.points[0].y) * 100 / height);
-        if (originY >= 0 && originY <= threshold) {
+        if (originY >= 0 && originY <= ORIGIN_SNAP_THRESHOLD) {
           originY = "top";
-        } else if (originY >= 50 - threshold/2 && originY <= 50 + threshold/2) {
+        } else if (originY >= 50 - ORIGIN_SNAP_THRESHOLD/2 && originY <= 50 + ORIGIN_SNAP_THRESHOLD/2) {
           originY = "center";
-        } else if (originY >= 100 - threshold && originY <= 100) {
+        } else if (originY >= 100 - ORIGIN_SNAP_THRESHOLD && originY <= 100) {
           originY = "bottom";
         } else {
           originY += "%";
