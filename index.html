@@ -381,21 +381,29 @@
         this.shape.movePointBy(0, 0, y);
         this.shape.movePointBy(1, 0, y);
         this.redrawBorders();
+
+        this.emit("resized");
       }
       Original.prototype.moveBottomBy = function(x, y) {
         this.shape.movePointBy(2, 0, y);
         this.shape.movePointBy(3, 0, y);
         this.redrawBorders();
+
+        this.emit("resized");
       }
       Original.prototype.moveLeftBy = function(x, y) {
         this.shape.movePointBy(0, x, 0);
         this.shape.movePointBy(3, x, 0);
         this.redrawBorders();
+
+        this.emit("resized");
       }
       Original.prototype.moveRightBy = function(x, y) {
         this.shape.movePointBy(1, x, 0);
         this.shape.movePointBy(2, x, 0);
         this.redrawBorders();
+
+        this.emit("resized");
       }
 
       // Arrows
@@ -453,12 +461,24 @@
 
         this.drawAtParentOffset(offsetX, offsetY);
 
+        // Move the origin with the parent original shape
         this.inside.on("moved-by", function(x, y) {
           this.x += x;
           this.y += y;
           this.drawAt(this.x, this.y);
         }.bind(this));
 
+        // Move the origin proportionally when the parent original shape gets resized
+        // so that if it was centered before, it stays centered
+        this.inside.on("resized", function() {
+          this.x = this.inside.shape.points[0].x +
+            ((this.inside.shape.points[1].x - this.inside.shape.points[0].x) * this.xRatio / 100);
+          this.y = this.inside.shape.points[0].y +
+            ((this.inside.shape.points[3].y - this.inside.shape.points[0].y) * this.yRatio / 100);
+          this.drawAt(this.x, this.y);
+        }.bind(this));
+
+        // Make the origin movable too
         movable(this.element, function(x, y) {
           this.x += x;
           this.y += y;
@@ -470,6 +490,12 @@
         this.element.setAttribute("cy", y);
 
         this.emit("updated");
+
+        this.xRatio = (this.x - this.inside.shape.points[0].x) /
+          (this.inside.shape.points[1].x - this.inside.shape.points[0].x) * 100;
+
+        this.yRatio = (this.y - this.inside.shape.points[0].y) /
+          (this.inside.shape.points[3].y - this.inside.shape.points[0].y) * 100;
       }
       Origin.prototype.drawAtParentOffset = function(x, y) {
         this.x = this.inside.shape.points[0].x + x;
