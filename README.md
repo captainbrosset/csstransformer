@@ -10,4 +10,3 @@ You can move and resize the element freely as well as move the transform origin 
 TODO
 ====
 * add a non symetrical shape in the element and transformed element, so it's easy to see if it's upside down or mirrored
-* hold shift when resizing the element should resize it propoertionally
