@@ -301,7 +301,7 @@
               y: yConstrained ? event.clientY - position.y : 0
             };
             position = {x: event.clientX, y: event.clientY};
-            moveByCb(delta.x, delta.y);
+            moveByCb(delta.x, delta.y, event.shiftKey);
           }
         }, false);
       }
@@ -405,30 +405,56 @@
 
         this.emit("updated");
       }
-      Original.prototype.moveTopBy = function(x, y) {
-        this.shape.movePointBy(0, 0, y);
-        this.shape.movePointBy(1, 0, y);
+      Original.prototype.moveAllBy = function(value) {
+        this.shape.movePointBy(0, 0, value);
+        this.shape.movePointBy(1, 0, value);
+        this.shape.movePointBy(2, 0, -value);
+        this.shape.movePointBy(3, 0, -value);
+        this.shape.movePointBy(0, value, 0);
+        this.shape.movePointBy(3, value, 0);
+        this.shape.movePointBy(1, -value, 0);
+        this.shape.movePointBy(2, -value, 0);
+      }
+      Original.prototype.moveTopBy = function(x, y, isShift) {
+        if (isShift) {
+          this.moveAllBy(y);
+        } else {
+          this.shape.movePointBy(0, 0, y);
+          this.shape.movePointBy(1, 0, y);
+        }
         this.redrawBorders();
 
         this.emit("resized");
       }
-      Original.prototype.moveBottomBy = function(x, y) {
-        this.shape.movePointBy(2, 0, y);
-        this.shape.movePointBy(3, 0, y);
+      Original.prototype.moveBottomBy = function(x, y, isShift) {
+        if (isShift) {
+          this.moveAllBy(-y);
+        } else {
+          this.shape.movePointBy(2, 0, y);
+          this.shape.movePointBy(3, 0, y);
+        }
         this.redrawBorders();
 
         this.emit("resized");
       }
-      Original.prototype.moveLeftBy = function(x, y) {
-        this.shape.movePointBy(0, x, 0);
-        this.shape.movePointBy(3, x, 0);
+      Original.prototype.moveLeftBy = function(x, y, isShift) {
+        if (isShift) {
+          this.moveAllBy(x);
+        } else {
+          this.shape.movePointBy(0, x, 0);
+          this.shape.movePointBy(3, x, 0);
+        }
         this.redrawBorders();
 
         this.emit("resized");
       }
-      Original.prototype.moveRightBy = function(x, y) {
-        this.shape.movePointBy(1, x, 0);
-        this.shape.movePointBy(2, x, 0);
+      Original.prototype.moveRightBy = function(x, y, isShift) {
+        if (isShift) {
+          this.moveAllBy(-x);
+        } else {
+          this.shape.movePointBy(1, x, 0);
+          this.shape.movePointBy(2, x, 0);
+        }
         this.redrawBorders();
 
         this.emit("resized");
