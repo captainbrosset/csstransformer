@@ -9,4 +9,5 @@ You can move and resize the element freely as well as move the transform origin 
 
 TODO
 ====
-* show dimensions and positions labels while moving/dragging (for center, show center/top/bottom/... labels when at 0/100%)
+* add a non symetrical shape in the element and transformed element, so it's easy to see if it's upside down or mirrored
+* hold shift when resizing the element should resize it propoertionally
