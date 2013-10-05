@@ -83,6 +83,9 @@
     .arrow-head {
       fill: rgba(210, 242, 254, .6);
     }
+    .logoLetter {
+      fill: rgba(255, 255, 255, .5);
+    }
 
     #transform-parser {
       position: absolute;
@@ -153,13 +156,13 @@
 
       var SVG_NS = "http://www.w3.org/2000/svg";
 
-      var WIDTH = 300;
-      var HEIGHT = 300;
+      var WIDTH = 350;
+      var HEIGHT = 500;
       var X = document.documentElement.clientWidth/2 - WIDTH/2;
       var Y = document.documentElement.clientHeight/2 - HEIGHT/2;
-      var TRANSFORM = decodeURI(document.location.hash.substring(1)) || "rotate(45deg)";
+      var TRANSFORM = decodeURI(document.location.hash.substring(1)) || "skew(45deg)";
       var ORIGIN_X = Math.round(WIDTH / 2);
-      var ORIGIN_Y = Math.round(HEIGHT / 2);
+      var ORIGIN_Y = HEIGHT;
       var ORIGIN_SNAP_THRESHOLD = 10;
       var BORDER_SIZE = 10;
 
@@ -196,7 +199,7 @@
         return getComputedStyle(transformParser).transform || getComputedStyle(transformParser).webkitTransform;
       }
 
-      function getTransformedRect(originalPoints, originX, originY) {
+      function getTransformedPoint(point, originX, originY) {
         // Get the transformation matrix from the computed style
         var tr = getComputedMatrix(), transformMatrix = [];
         tr = tr.substring(0, tr.length - 1).substring(tr.indexOf("(") + 1).split(",");
@@ -235,21 +238,18 @@
         }
 
         // Each of the shape's corners in a matrix
-        var topLeftMatrix = [originalPoints[0].x - originX, originalPoints[0].y - originY, 1, 1];
-        var topRightMatrix = [originalPoints[1].x - originX, originalPoints[1].y - originY, 1, 1];
-        var bottomRightMatrix = [originalPoints[2].x - originX, originalPoints[2].y - originY, 1, 1];
-        var bottomLeftMatrix = [originalPoints[3].x - originX, originalPoints[3].y - originY, 1, 1];
+        var matrix = [point.x - originX, point.y - originY, 1, 1];
+        var result = multiplyMatricesAndGetXY(transformMatrix, matrix);
 
-        var topLeft = multiplyMatricesAndGetXY(transformMatrix, topLeftMatrix);
-        var topRight = multiplyMatricesAndGetXY(transformMatrix, topRightMatrix);
-        var bottomRight = multiplyMatricesAndGetXY(transformMatrix, bottomRightMatrix);
-        var bottomLeft = multiplyMatricesAndGetXY(transformMatrix, bottomLeftMatrix);
+        return {x: result.x + originX, y: result.y + originY};
+      }
 
+      function getTransformedRect(originalPoints, originX, originY) {
         return [
-          {x: topLeft.x + originX, y: topLeft.y + originY},
-          {x: topRight.x + originX, y: topRight.y + originY},
-          {x: bottomRight.x + originX, y: bottomRight.y + originY},
-          {x: bottomLeft.x + originX, y: bottomLeft.y + originY}
+          getTransformedPoint(originalPoints[0], originX, originY),
+          getTransformedPoint(originalPoints[1], originX, originY),
+          getTransformedPoint(originalPoints[2], originX, originY),
+          getTransformedPoint(originalPoints[3], originX, originY)
         ];
       }
 
@@ -347,6 +347,59 @@
         this.setPoints(this.points);
       };
 
+      // Big CSS logo shape, helps with visualizing mirroring and rotation
+
+      function CssLogo(origin) {
+        this.origin = origin;
+
+        this.shapes = [
+          new Shape([], "logoLetter"),
+          new Shape([], "logoLetter"),
+          new Shape([], "logoLetter")
+        ];
+        this.tShapes = [
+          new Shape([], "logoLetter"),
+          new Shape([], "logoLetter"),
+          new Shape([], "logoLetter")
+        ];
+      }
+
+      CssLogo.prototype.draw = function(inside) {
+        var logoPoints = this.getPoints();
+        var x0 = inside.points[0].x + BORDER_SIZE;
+        var x1 = inside.points[1].x - BORDER_SIZE;
+        var y0 = inside.points[0].y + BORDER_SIZE;
+        var y1 = inside.points[3].y - BORDER_SIZE;
+        function mapX(point) {
+          return x0 + point * (x1 - x0);
+        }
+        function mapY(point) {
+          return y0 + point * (y1 - y0);
+        }
+        mapX = mapX.bind(this);
+        mapY = mapY.bind(this);
+        for (var s = 0; s < logoPoints.length; s ++) {
+          var letter = logoPoints[s];
+          var tLetter = [];
+
+          for (var p = 0; p < letter.length; p ++) {
+            letter[p].x = mapX(letter[p].x);
+            letter[p].y = mapY(letter[p].y);
+            tLetter.push(getTransformedPoint({x: letter[p].x, y: letter[p].y}, this.origin.x, this.origin.y));
+          }
+
+          this.shapes[s].setPoints(letter);
+          this.tShapes[s].setPoints(tLetter);
+        }
+      }
+      CssLogo.prototype.getPoints = function() {
+        return [
+          [{"x":0,"y":0},{"x":0.2727272727272727,"y":0},{"x":0.2727272727272727,"y":0.09090909090909091},{"x":0.09090909090909091,"y":0.09090909090909091},{"x":0.09090909090909091,"y":0.18181818181818182},{"x":0.2727272727272727,"y":0.18181818181818182},{"x":0.2727272727272727,"y":0.2727272727272727},{"x":0,"y":0.2727272727272727}],
+          [{"x":0.36363636363636365,"y":0},{"x":0.6363636363636364,"y":0},{"x":0.6363636363636364,"y":0.09090909090909091},{"x":0.45454545454545453,"y":0.09090909090909091},{"x":0.6363636363636364,"y":0.18181818181818182},{"x":0.6363636363636364,"y":0.2727272727272727},{"x":0.36363636363636365,"y":0.2727272727272727},{"x":0.36363636363636365,"y":0.18181818181818182},{"x":0.5454545454545454,"y":0.18181818181818182},{"x":0.36363636363636365,"y":0.09090909090909091}],
+          [{"x":0.7272727272727273,"y":0},{"x":1,"y":0},{"x":1,"y":0.09090909090909091},{"x":0.8181818181818182,"y":0.09090909090909091},{"x":1,"y":0.18181818181818182},{"x":1,"y":0.2727272727272727},{"x":0.7272727272727273,"y":0.2727272727272727},{"x":0.7272727272727273,"y":0.18181818181818182},{"x":0.9090909090909091,"y":0.18181818181818182},{"x":0.7272727272727273,"y":0.09090909090909091}]
+        ];
+      }
+
       // Our transformee
 
       function Original(points) {
@@ -402,7 +455,6 @@
           {x: this.shape.points[2].x, y: this.shape.points[2].y},
           {x: this.shape.points[2].x- BORDER_SIZE, y: this.shape.points[2].y}
         ]);
-
         this.emit("updated");
       }
       Original.prototype.moveAllBy = function(value) {
@@ -496,6 +548,9 @@
           new Arrow()
         ];
 
+        // Draw the CSS logo
+        this.logo = new CssLogo(this.origin);
+
         this.draw();
       }
       Transformed.prototype.draw = function() {
@@ -505,6 +560,8 @@
         for (var i = 0; i < 4; i ++) {
           this.arrows[i].drawAt(this.original.shape.points[i].x, this.original.shape.points[i].y, transformedPoints[i].x, transformedPoints[i].y);
         }
+
+        this.logo.draw(this.original.shape);
       }
 
       // Origin circle
