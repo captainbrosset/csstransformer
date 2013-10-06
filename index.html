@@ -156,13 +156,13 @@
 
       var SVG_NS = "http://www.w3.org/2000/svg";
 
-      var WIDTH = 350;
-      var HEIGHT = 500;
+      var WIDTH = 250;
+      var HEIGHT = 200;
       var X = document.documentElement.clientWidth/2 - WIDTH/2;
       var Y = document.documentElement.clientHeight/2 - HEIGHT/2;
-      var TRANSFORM = decodeURI(document.location.hash.substring(1)) || "skew(45deg)";
+      var TRANSFORM = decodeURI(document.location.hash.substring(1)) || "translateX(250px) rotate(.25turn) skew(45deg)";
       var ORIGIN_X = Math.round(WIDTH / 2);
-      var ORIGIN_Y = HEIGHT;
+      var ORIGIN_Y = Math.round(HEIGHT / 2);
       var ORIGIN_SNAP_THRESHOLD = 10;
       var BORDER_SIZE = 10;
 
